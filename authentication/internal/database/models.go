@@ -5,15 +5,14 @@
 package database
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type Apikey struct {
-	ID     uuid.UUID
-	ApiKey sql.NullString
+type Revoked struct {
+	Token     string
+	RevokedAt time.Time
 }
 
 type User struct {

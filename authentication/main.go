@@ -14,10 +14,8 @@ import (
 )
 
 type apiconfig struct {
-	fileservercounts int
-	jwtsecret        string
-	apiKey           string
-	//DB               *database.Queries
+	jwtsecret string
+	DB        *database.Queries
 }
 
 func main() {
@@ -28,6 +26,12 @@ func main() {
 	if port == "" {
 		log.Print("Port not provided")
 		port = "8080"
+	}
+
+	jwtsecret := os.Getenv("JWT_SECRET")
+
+	if jwtsecret == "" {
+		log.Fatalf("JWT Secret not found")
 	}
 
 	dbURL := os.Getenv("DB_CONN")
@@ -41,11 +45,15 @@ func main() {
 	}
 	queries := database.New(dbcon)
 
+	apicfg := &apiconfig{
+		jwtsecret: jwtsecret,
+		DB:        queries,
+	}
+
 	r := chi.NewRouter()
 	s := chi.NewRouter()
 
-	s.Post("/Signup")
-	s.Post("/Login")
+	s.Post("/signup", apicfg.signup)
 
 	r.Mount("/auth", s)
 
