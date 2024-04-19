@@ -53,13 +53,13 @@ func RefreshToken(id uuid.UUID, secret_key string) (string, error) {
 
 }
 
-func Hashpassword(passwd string) (string, error) {
+func Hashpassword(passwd string) ([]byte, error) {
 	encrypted, err := bcrypt.GenerateFromPassword([]byte(passwd), bcrypt.DefaultCost)
 	if err != nil {
-		return "", errors.New("couldn't Hash the password")
+		return []byte{}, errors.New("couldn't Hash the password")
 	}
 
-	return string(encrypted), nil
+	return encrypted, nil
 }
 
 func BearerHeader(headers http.Header) (string, error) {

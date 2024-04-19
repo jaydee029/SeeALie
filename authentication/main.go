@@ -19,7 +19,7 @@ type apiconfig struct {
 }
 
 func main() {
-	godotenv.Load("auth.env")
+	godotenv.Load(".env")
 
 	port := os.Getenv("PORT")
 
@@ -54,6 +54,7 @@ func main() {
 	s := chi.NewRouter()
 
 	s.Post("/signup", apicfg.signup)
+	s.Post("/login", apicfg.login)
 
 	r.Mount("/auth", s)
 

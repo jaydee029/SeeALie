@@ -1,6 +1,6 @@
 -- name: Createuser :one
 INSERT INTO users(id,email,passwd,username,created_at) VALUES($1,$2,$3,$4,$5)
-RETURNING *;
+RETURNING username, created_at;
 
 -- name: If_email :one
 SELECT EXISTS (
