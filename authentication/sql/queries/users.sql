@@ -11,3 +11,9 @@ SELECT EXISTS (
 SELECT EXISTS (
     SELECT 1 FROM users WHERE username=$1
 ) AS value_exists;
+
+-- name: Find_user_email :one
+SELECT * FROM users WHERE email=$1;
+
+-- name: Find_user_name :one
+SELECT * FROM users WHERE username=$1;

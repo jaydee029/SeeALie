@@ -100,3 +100,22 @@ func VerifyRefresh(tokenstring, tokenSecret string) (bool, error) {
 	}
 	return false, nil
 }
+
+func ValidateToken(tokenstring, tokenSecret string) (string, error) {
+	type customClaims struct {
+		jwt.RegisteredClaims
+	}
+	token, err := jwt.ParseWithClaims(tokenstring, &customClaims{}, func(token *jwt.Token) (interface{}, error) { return []byte(tokenSecret), nil })
+
+	if err != nil {
+		return "", errors.New(err.Error()) //"jwt couldn't be parsed"
+	}
+
+	userId, err := token.Claims.GetSubject()
+
+	if err != nil {
+		return "", errors.New("user id couldn't be extracted")
+	}
+
+	return userId, nil
+}

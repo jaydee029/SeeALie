@@ -43,6 +43,40 @@ func (q *Queries) Createuser(ctx context.Context, arg CreateuserParams) (Createu
 	return i, err
 }
 
+const find_user_email = `-- name: Find_user_email :one
+SELECT id, email, passwd, username, created_at FROM users WHERE email=$1
+`
+
+func (q *Queries) Find_user_email(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, find_user_email, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Passwd,
+		&i.Username,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const find_user_name = `-- name: Find_user_name :one
+SELECT id, email, passwd, username, created_at FROM users WHERE username=$1
+`
+
+func (q *Queries) Find_user_name(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRowContext(ctx, find_user_name, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Passwd,
+		&i.Username,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const if_email = `-- name: If_email :one
 SELECT EXISTS (
     SELECT 1 FROM users WHERE email=$1
