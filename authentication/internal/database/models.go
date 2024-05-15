@@ -5,10 +5,22 @@
 package database
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type Friend struct {
+	FollowedBy  uuid.UUID
+	Followed    uuid.UUID
+	ConnectedAt time.Time
+}
+
+type IDName struct {
+	UserID   uuid.UUID
+	Username sql.NullString
+}
 
 type Revoked struct {
 	Token     string

@@ -55,6 +55,8 @@ func main() {
 
 	s.Post("/signup", apicfg.signup)
 	s.Post("/login", apicfg.login)
+	s.Post("/refresh", apicfg.Refresh)
+	s.Post("/revoke", apicfg.Revoke)
 
 	r.Mount("/auth", s)
 
