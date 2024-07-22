@@ -11,6 +11,13 @@ import (
 	"github.com/google/uuid"
 )
 
+type Contact struct {
+	ID          uuid.UUID
+	Username    string
+	RoomID      uuid.UUID
+	ConnectedOn time.Time
+}
+
 type Friend struct {
 	FollowedBy  uuid.UUID
 	Followed    uuid.UUID
@@ -22,7 +29,7 @@ type IDName struct {
 	Username sql.NullString
 }
 
-type Revokedt struct {
+type Revoked struct {
 	Token     string
 	RevokedAt time.Time
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jaydee029/SeeALie/request/handler"
+	"github.com/jaydee029/SeeALie/request/internal/database"
 	"github.com/joho/godotenv"
 )
 
@@ -50,13 +51,7 @@ func main() {
 	}
 
 	r := chi.NewRouter()
-	s := chi.NewRouter()
-
-	s.Post("/contacts", apicfg.signup)
-	s.Post("/verify", apicfg.login)
-	s.Post("/connect", apicfg.Connect)
-
-	r.Mount("/request", s)
+	r.Post("/request", apicfg.sendmail)
 
 	sermux := handler.Corsmiddleware(r)
 

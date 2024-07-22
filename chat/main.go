@@ -1,36 +1,41 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
+	"os"
 
-	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
-}
+func main() {
+	godotenv.Load(".env")
 
-type Client struct {
-	conn *websocket.Conn
-}
+	port := os.Getenv("PORT")
 
-func newClient(conn *websocket.Conn) *Client {
-	return &Client{
-		conn: conn,
-	}
-}
-
-func ServeWS(w http.ResponseWriter, r *http.Request) {
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-
-	if err != nil {
-		fmt.Println("error:", err)
+	if port == "" {
+		log.Print("Port not provided")
+		port = "8080"
 	}
 
-	client := newClient(conn)
-	fmt.Println("New client joined")
-	fmt.Println(client)
+	jwtsecret := os.Getenv("JWT_SECRET")
+
+	if jwtsecret == "" {
+		log.Fatalf("JWT Secret not found")
+	}
+
+	wsServer := newWebServer()
+	go wsServer.Run()
+
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWS(wsServer, w, r)
+	})
+
+	srv := &http.Server{
+		Addr: ":" + port,
+		//Handler: sermux,
+	}
+	log.Printf("The chat server is live on port %s", port)
+	log.Fatal(srv.ListenAndServe())
+
 }

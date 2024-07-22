@@ -1,6 +1,6 @@
 version: "2"
 sql:
-  - schema: "sql/schema"
+  - schema: "../database/schema"
     queries: "sql/queries"
     engine: "postgresql"
     gen:
