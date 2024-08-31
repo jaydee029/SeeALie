@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -41,7 +40,7 @@ func main() {
 
 	dbcon, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		fmt.Print(err.Error())
+		log.Fatal(err.Error())
 	}
 	queries := database.New(dbcon)
 
