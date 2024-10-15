@@ -11,7 +11,7 @@ import (
 )
 
 const revokeToken = `-- name: RevokeToken :one
-INSERT INTO revokedt(token,revoked_at) VALUES($1,$2)
+INSERT INTO revoked(token,revoked_at) VALUES($1,$2)
 RETURNING token, revoked_at
 `
 
@@ -20,15 +20,15 @@ type RevokeTokenParams struct {
 	RevokedAt time.Time
 }
 
-func (q *Queries) RevokeToken(ctx context.Context, arg RevokeTokenParams) (Revokedt, error) {
+func (q *Queries) RevokeToken(ctx context.Context, arg RevokeTokenParams) (Revoked, error) {
 	row := q.db.QueryRowContext(ctx, revokeToken, arg.Token, arg.RevokedAt)
-	var i Revokedt
+	var i Revoked
 	err := row.Scan(&i.Token, &i.RevokedAt)
 	return i, err
 }
 
 const verifyRevoke = `-- name: VerifyRevoke :one
-SELECT EXISTS (SELECT 1 FROM revokedt WHERE token=$1) AS value_exists
+SELECT EXISTS (SELECT 1 FROM revoked WHERE token=$1) AS value_exists
 `
 
 func (q *Queries) VerifyRevoke(ctx context.Context, token string) (bool, error) {

@@ -23,6 +23,7 @@ type Wserver struct {
 	jwtSecret  string
 	DB         *database.Queries
 	Cache      *redis.Client
+	//pubsub     *redis.Client
 }
 
 func main() {
@@ -85,8 +86,8 @@ func main() {
 		Addr:    ":" + port,
 		Handler: sermux,
 	}
+	go Wsserver.Runserver(context.Background())
 
-	//http.HandleFunc("/chat", Wsserver.handleChat)
 	log.Printf("The chat server is live on port: %s\n", port)
 	log.Fatal(srv.ListenAndServe())
 }

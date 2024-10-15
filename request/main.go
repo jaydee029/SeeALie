@@ -4,34 +4,35 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
+	"net"
 	"os"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/jaydee029/SeeALie/request/handler"
 	"github.com/jaydee029/SeeALie/request/internal/database"
+	"github.com/jaydee029/SeeALie/request/protos"
 	"github.com/joho/godotenv"
+	"google.golang.org/grpc"
 )
 
-type apiconfig struct {
-	jwtsecret string
-	DB        *database.Queries
+type server struct {
+	DB          *database.Queries
+	Domain      string
+	AdminEmail  string
+	AdminPasswd string
+	protos.UnimplementedRequestServer
 }
 
 func main() {
+
 	godotenv.Load(".env")
 
 	port := os.Getenv("PORT")
+	domain := os.Getenv("DOMAIN")
+	adminEmail := os.Getenv("EMAIL")
+	adminPasswd := os.Getenv("PASSWD")
 
 	if port == "" {
 		log.Print("Port not provided")
 		port = "8080"
-	}
-
-	jwtsecret := os.Getenv("JWT_SECRET")
-
-	if jwtsecret == "" {
-		log.Fatalf("JWT Secret not found")
 	}
 
 	dbURL := os.Getenv("DB_CONN")
@@ -45,21 +46,21 @@ func main() {
 	}
 	queries := database.New(dbcon)
 
-	apicfg := &apiconfig{
-		jwtsecret: jwtsecret,
-		DB:        queries,
+	srv := &server{
+		DB:          queries,
+		Domain:      domain,
+		AdminEmail:  adminEmail,
+		AdminPasswd: adminPasswd,
 	}
 
-	r := chi.NewRouter()
-	r.Post("/request", apicfg.sendmail)
+	grpcsrv := grpc.NewServer()
+	protos.RegisterRequestServer(grpcsrv, srv)
 
-	sermux := handler.Corsmiddleware(r)
-
-	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: sermux,
+	listener, err := net.Listen("tcp", ":50051")
+	if err != nil {
+		log.Printf("listener fsiled %v", err)
 	}
 
 	log.Printf("The request server is live on port %s", port)
-	log.Fatal(srv.ListenAndServe())
+	log.Fatal(grpcsrv.Serve(listener))
 }

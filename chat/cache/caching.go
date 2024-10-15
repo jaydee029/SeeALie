@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func SetCacheFriends(ctx context.Context, cache *redis.Client, key string, value database.Find_friendsRow) error {
+func SetCacheFriends(ctx context.Context, cache *redis.Client, key string, value []database.Find_friendsRow) error {
 
 	expirytime := 24 * time.Hour
 	json, err := json.Marshal(value)

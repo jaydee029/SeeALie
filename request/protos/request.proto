@@ -1,0 +1,21 @@
+syntax="proto3";
+
+package pb;
+
+option go_package="/protos";
+
+service request{
+    rpc EnqueRequest(EmailRequest)returns(EmailResponse){}
+}
+
+message EmailRequest{
+    string sentby = 1;
+    string sentto = 2;
+    string type = 3;
+}
+
+message EmailResponse{
+    string response = 1;
+    bool error = 2;
+}
+

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	auth "github.com/jaydee029/SeeALie/authentication/internal"
-	"github.com/jaydee029/SeeALie/authentication/internal/database"
-	validate "github.com/jaydee029/SeeALie/authentication/validator"
+	auth "github.com/jaydee029/SeeALie/user/internal"
+	"github.com/jaydee029/SeeALie/user/internal/database"
+	validate "github.com/jaydee029/SeeALie/user/validator"
 	"golang.org/x/crypto/bcrypt"
 )
 

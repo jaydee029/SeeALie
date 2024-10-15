@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	auth "github.com/jaydee029/SeeALie/authentication/internal"
-	"github.com/jaydee029/SeeALie/authentication/internal/database"
+	auth "github.com/jaydee029/SeeALie/user/internal"
+	"github.com/jaydee029/SeeALie/user/internal/database"
 )
 
 type Refresh_res struct {

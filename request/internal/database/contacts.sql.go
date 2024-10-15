@@ -12,31 +12,70 @@ import (
 	"github.com/google/uuid"
 )
 
-const addcontact = `-- name: Addcontact :one
-INSERT INTO contacts(id, username, room_id ,connected_on) VALUES ($1,$2,$3,$4)
-RETURNING username, connected_on
+const add_connection_Info = `-- name: Add_connection_Info :one
+INSERT INTO connections (request_by,request_to,connection_id,created_at) VALUES ($1,$2,$3,$4)
+RETURNING created_at
 `
 
-type AddcontactParams struct {
-	ID          uuid.UUID
-	Username    string
-	RoomID      uuid.UUID
-	ConnectedOn time.Time
+type Add_connection_InfoParams struct {
+	RequestBy    string
+	RequestTo    string
+	ConnectionID uuid.UUID
+	CreatedAt    time.Time
 }
 
-type AddcontactRow struct {
-	Username    string
-	ConnectedOn time.Time
-}
-
-func (q *Queries) Addcontact(ctx context.Context, arg AddcontactParams) (AddcontactRow, error) {
-	row := q.db.QueryRowContext(ctx, addcontact,
-		arg.ID,
-		arg.Username,
-		arg.RoomID,
-		arg.ConnectedOn,
+func (q *Queries) Add_connection_Info(ctx context.Context, arg Add_connection_InfoParams) (time.Time, error) {
+	row := q.db.QueryRowContext(ctx, add_connection_Info,
+		arg.RequestBy,
+		arg.RequestTo,
+		arg.ConnectionID,
+		arg.CreatedAt,
 	)
-	var i AddcontactRow
-	err := row.Scan(&i.Username, &i.ConnectedOn)
-	return i, err
+	var created_at time.Time
+	err := row.Scan(&created_at)
+	return created_at, err
+}
+
+const delete_connection_Info = `-- name: Delete_connection_Info :exec
+DELETE FROM connections WHERE connection_id=$1
+`
+
+func (q *Queries) Delete_connection_Info(ctx context.Context, connectionID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, delete_connection_Info, connectionID)
+	return err
+}
+
+const getRequestInfo = `-- name: GetRequestInfo :one
+SELECT email FROM users WHERE username=$1
+`
+
+func (q *Queries) GetRequestInfo(ctx context.Context, username string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getRequestInfo, username)
+	var email string
+	err := row.Scan(&email)
+	return email, err
+}
+
+const get_user_email = `-- name: Get_user_email :one
+SELECT email FROM users WHERE username=$1
+`
+
+func (q *Queries) Get_user_email(ctx context.Context, username string) (string, error) {
+	row := q.db.QueryRowContext(ctx, get_user_email, username)
+	var email string
+	err := row.Scan(&email)
+	return email, err
+}
+
+const user_exists = `-- name: User_exists :one
+SELECT EXISTS (
+    SELECT 1 FROM users WHERE username=$1
+) AS value_exists
+`
+
+func (q *Queries) User_exists(ctx context.Context, username string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, user_exists, username)
+	var value_exists bool
+	err := row.Scan(&value_exists)
+	return value_exists, err
 }

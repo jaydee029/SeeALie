@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jaydee029/SeeALie/authentication/handler"
-	"github.com/jaydee029/SeeALie/authentication/internal/database"
+	"github.com/jaydee029/SeeALie/user/handler"
+	"github.com/jaydee029/SeeALie/user/internal/database"
 	"github.com/joho/godotenv"
 )
 
@@ -56,6 +56,7 @@ func main() {
 	s.Post("/login", apicfg.login)
 	s.Post("/refresh", apicfg.Refresh)
 	s.Post("/revoke", apicfg.Revoke)
+	s.Post("/verify", apicfg.Verify)
 
 	r.Mount("/auth", s)
 

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -33,7 +31,6 @@ type friendsResponse struct {
 	Friends []string
 }
 
-/*
 func (ws *Wserver) Addfriend(w http.ResponseWriter, r *http.Request) {
 	token, err := auth.BearerHeader(r.Header)
 	if err != nil {
@@ -51,13 +48,20 @@ func (ws *Wserver) Addfriend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, err := ws.DB.Get_username(context.Background(), Id)
+	username, err := ws.DB.Get_username(r.Context(), Id)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error finding the username:"+err.Error())
 		return
 	}
 
-}*/
+	targetClient := r.URL.Query().Get("name")
+	if targetClient == "" {
+		respondWithError(w, http.StatusBadRequest, "no name entered")
+	}
+
+	
+
+}
 
 func (ws *Wserver) Getfriends(w http.ResponseWriter, r *http.Request) {
 
@@ -77,25 +81,30 @@ func (ws *Wserver) Getfriends(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, err := ws.DB.Get_username(context.Background(), Id)
+	username, err := ws.DB.Get_username(r.Context(), Id)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error finding the username:"+err.Error())
 		return
 	}
 
 	cacheHit := true
-	friendsTable, err := caching.GetCacheFriends(context.Background(), ws.Cache, username)
+	friendsTable, err := caching.GetCacheFriends(r.Context(), ws.Cache, username)
 	if err != nil && err != redis.Nil {
 		log.Println("error getting data user profile from redis :  ", err)
 		cacheHit = false
 	}
 
 	if !cacheHit {
-		friendsTable, err = ws.DB.Find_friends(context.Background(), username)
+		friendsTable, err = ws.DB.Find_friends(r.Context(), username)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "error finding friends"+err.Error())
 			return
 		}
+	}
+
+	err = caching.SetCacheFriends(r.Context(), ws.Cache, username, friendsTable)
+	if err != nil {
+		log.Println("error setting the cache: ", err)
 	}
 
 	var friends []string
@@ -127,24 +136,26 @@ func (ws *Wserver) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, err := ws.DB.Get_username(context.Background(), Id)
+	username, err := ws.DB.Get_username(r.Context(), Id)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error finding the username:"+err.Error())
 		return
 	}
 
-	go ws.Runserver()
 	targetClient := r.URL.Query().Get("name")
+	if targetClient == "" {
+		respondWithError(w, http.StatusBadRequest, "no name entered")
+	}
 
 	cacheHit := true
-	friendsTable, err := caching.GetCacheFriends(context.Background(), ws.Cache, username)
+	friendsTable, err := caching.GetCacheFriends(r.Context(), ws.Cache, username)
 	if err != nil && err != redis.Nil {
 		log.Println("error getting data user profile from redis :  ", err)
 		cacheHit = false
 	}
 
 	if !cacheHit {
-		friendsTable, err = ws.DB.Find_friends(context.Background(), username)
+		friendsTable, err = ws.DB.Find_friends(r.Context(), username)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "error finding friends:"+err.Error())
 			return
@@ -176,7 +187,7 @@ func (ws *Wserver) handleChat(w http.ResponseWriter, r *http.Request) {
 	go client.ReadInput()
 	go client.WriteInput()
 
-	fmt.Println("New client joined the chat server", client)
+	log.Println("New client joined the chat server", client)
 
 	ws.Register <- client
 
