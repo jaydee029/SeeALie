@@ -7,9 +7,8 @@ package database
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createuser = `-- name: Createuser :one
@@ -18,20 +17,20 @@ RETURNING username, created_at
 `
 
 type CreateuserParams struct {
-	ID        uuid.UUID
+	ID        pgtype.UUID
 	Email     string
 	Passwd    []byte
 	Username  string
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamp
 }
 
 type CreateuserRow struct {
 	Username  string
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamp
 }
 
 func (q *Queries) Createuser(ctx context.Context, arg CreateuserParams) (CreateuserRow, error) {
-	row := q.db.QueryRowContext(ctx, createuser,
+	row := q.db.QueryRow(ctx, createuser,
 		arg.ID,
 		arg.Email,
 		arg.Passwd,
@@ -48,7 +47,7 @@ SELECT id, email, passwd, username, created_at FROM users WHERE email=$1
 `
 
 func (q *Queries) Find_user_email(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRowContext(ctx, find_user_email, email)
+	row := q.db.QueryRow(ctx, find_user_email, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -65,7 +64,7 @@ SELECT id, email, passwd, username, created_at FROM users WHERE username=$1
 `
 
 func (q *Queries) Find_user_name(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRowContext(ctx, find_user_name, username)
+	row := q.db.QueryRow(ctx, find_user_name, username)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -77,27 +76,27 @@ func (q *Queries) Find_user_name(ctx context.Context, username string) (User, er
 	return i, err
 }
 
-const if_email = `-- name: If_email :one
+const is_email = `-- name: Is_email :one
 SELECT EXISTS (
     SELECT 1 FROM users WHERE email=$1
 ) AS value_exists
 `
 
-func (q *Queries) If_email(ctx context.Context, email string) (bool, error) {
-	row := q.db.QueryRowContext(ctx, if_email, email)
+func (q *Queries) Is_email(ctx context.Context, email string) (bool, error) {
+	row := q.db.QueryRow(ctx, is_email, email)
 	var value_exists bool
 	err := row.Scan(&value_exists)
 	return value_exists, err
 }
 
-const if_username = `-- name: If_username :one
+const is_username = `-- name: Is_username :one
 SELECT EXISTS (
     SELECT 1 FROM users WHERE username=$1
 ) AS value_exists
 `
 
-func (q *Queries) If_username(ctx context.Context, username string) (bool, error) {
-	row := q.db.QueryRowContext(ctx, if_username, username)
+func (q *Queries) Is_username(ctx context.Context, username string) (bool, error) {
+	row := q.db.QueryRow(ctx, is_username, username)
 	var value_exists bool
 	err := row.Scan(&value_exists)
 	return value_exists, err

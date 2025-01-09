@@ -58,7 +58,7 @@ func main() {
 
 	listener, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Printf("listener fsiled %v", err)
+		log.Printf("listener failed %v", err)
 	}
 
 	log.Printf("The request server is live on port %s", port)

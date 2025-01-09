@@ -7,12 +7,13 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 const dequeRequests = `-- name: DequeRequests :many
-SELECT request_by, request_to, connection_id FROM connections WHERE status_sent=PENDING AND request_status<3 ORDER BY created_at DESC
+SELECT request_by, request_to, connection_id FROM connections WHERE status_sent=PENDING AND sent_attempts<3 ORDER BY created_at DESC
 `
 
 type DequeRequestsRow struct {
@@ -62,7 +63,7 @@ WHERE connection_id=$1 RETURNING sent_attempts,status_sent
 `
 
 type MailnotSentRow struct {
-	SentAttempts int32
+	SentAttempts sql.NullInt32
 	StatusSent   string
 }
 

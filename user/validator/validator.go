@@ -1,40 +1,47 @@
 package validate
 
-import "regexp"
+import (
+	"errors"
+	"regexp"
+)
 
-func ValidateEmail(email string) (bool, error) {
-	regexstring := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+func ValidateEmail(email string) error {
+	pattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	match, _ := regexp.MatchString(pattern, email)
 
-	is_email, err := regexp.MatchString(regexstring, email)
-
-	if err != nil {
-		return is_email, err
+	if !match {
+		return errors.New("email is not valid")
 	}
 
-	return is_email, nil
-
+	return nil
 }
 
-func ValidateUsername(username string) (bool, error) {
+func ValidateUsername(username string) error {
 	regexstring := `^[a-zA-Z_][a-zA-Z0-9._%+-]{0,8}$`
 
-	is_valid, err := regexp.MatchString(regexstring, username)
+	is_valid, _ := regexp.MatchString(regexstring, username)
 
-	if err != nil {
-		return is_valid, err
+	if !is_valid {
+		return errors.New("username is not valid")
 	}
 
-	return is_valid, nil
+	return nil
 }
 
-func ValidatePassword(passwd string) (bool, error) {
-	regexstring := `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$#&_]{8,}$`
+// since regexp doesn't suport lookahead we need to use multiple operations
 
-	is_valid, err := regexp.MatchString(regexstring, passwd)
+func ValidatePassword(passwd string) error {
 
-	if err != nil {
-		return is_valid, err
+	lowercase := regexp.MustCompile(`[a-z]`).MatchString(passwd)
+
+	uppercase := regexp.MustCompile(`[A-Z]`).MatchString(passwd)
+
+	digit := regexp.MustCompile(`\d`).MatchString(passwd)
+
+	allowedChars := regexp.MustCompile(`^[a-zA-Z\d@$#&_]{8,}$`).MatchString(passwd)
+
+	if !lowercase || !uppercase || !digit || !allowedChars {
+		return errors.New("password is not valid")
 	}
-
-	return is_valid, nil
+	return nil
 }

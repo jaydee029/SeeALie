@@ -11,14 +11,20 @@ import (
 )
 
 func (s *server) Run(ctx context.Context) {
-	ticker := time.NewTicker(30 * time.Second)
+	reqticker := time.NewTicker(30 * time.Second)
+	nfticker := time.NewTicker(1 * time.Minute)
 
-	defer ticker.Stop()
+	defer func() {
+		reqticker.Stop()
+		nfticker.Stop()
+	}()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-reqticker.C:
 			s.ProcessRequest(ctx)
+		case <-nfticker.C:
+
 		case <-ctx.Done():
 			return
 		}

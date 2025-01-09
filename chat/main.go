@@ -78,8 +78,9 @@ func main() {
 
 	r.Get("/chat", Wsserver.handleChat)
 	r.Get("/chat/friends", Wsserver.Getfriends)
-	//r.Get("/chat/addfriend", Wsserver.Addfriend)
-
+	/*	r.Get("/chat/addfriend", Wsserver.Addfriend)
+		r.Post("/chat/verify",Wsserver.Verifyfriend)
+	*/
 	sermux := middleware.Corsmiddleware(r)
 
 	srv := &http.Server{

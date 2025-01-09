@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	auth "github.com/jaydee029/SeeALie/user/internal"
+	"github.com/jaydee029/SeeALie/user/internal/auth"
 	"github.com/jaydee029/SeeALie/user/internal/database"
 )
 
-type Refresh_res struct {
+type refreshRes struct {
 	Refresh_token string    `json:"refresh_token,omitempty"`
 	Auth_token    string    `json:"auth_token,omitempty"`
 	Revoked_at    time.Time `json:"revoked_at,omitempty"`
@@ -51,7 +51,7 @@ func (cfg *apiconfig) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJson(w, http.StatusAccepted, Refresh_res{
+	respondWithJson(w, http.StatusAccepted, refreshRes{
 		Auth_token: auth_token,
 	})
 
@@ -82,7 +82,7 @@ func (cfg *apiconfig) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJson(w, http.StatusAccepted, Refresh_res{
+	respondWithJson(w, http.StatusAccepted, refreshRes{
 		Refresh_token: revoked.Token,
 		Revoked_at:    revoked.RevokedAt,
 	})

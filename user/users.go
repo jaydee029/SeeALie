@@ -1,214 +1,180 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
-	auth "github.com/jaydee029/SeeALie/user/internal"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jaydee029/SeeALie/user/internal/auth"
 	"github.com/jaydee029/SeeALie/user/internal/database"
 	validate "github.com/jaydee029/SeeALie/user/validator"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Input struct {
-	Username string `json:"username"`
+type UserRes struct {
+	Username   string    `json:"username"`
+	Created_at time.Time `json:"created_at"`
+	Email      string    `json:"email"`
+}
+type res_login struct {
+	Email         string `json:"email"`
+	Token         string `json:"token"`
+	Refresh_token string `json:"refresh_token"`
+}
+type UserInput struct {
+	Password string `json:"password"`
 	Email    string `json:"email"`
-	Passwd   string `json:"passwd"`
+	Username string `json:"username"`
 }
 
-type login_input struct {
-	Login_id string `json:"login_id"` //email or username
-	Passwd   string `json:"passwd"`
-}
+func (cfg *apiconfig) Signup(w http.ResponseWriter, r *http.Request) {
 
-type Res struct {
-	Username      string    `json:"username,omitempty"`
-	Refresh_Token string    `json:"refresh_token,omitempty"`
-	Auth_Token    string    `json:"auth_token,omitempty"`
-	Created_at    time.Time `json:"created_at,omitempty"`
-}
-
-func (cfg *apiconfig) signup(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	params := Input{}
+	params := UserInput{}
 	err := decoder.Decode(&params)
-
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Error reading the input")
+		respondWithError(w, http.StatusInternalServerError, "couldn't decode parameters")
 		return
 	}
 
-	is_email, err := validate.ValidateEmail(params.Email)
-
+	err = validate.ValidateEmail(params.Email)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if !is_email {
-		respondWithError(w, http.StatusBadRequest, "Enter a valid email")
+	email_if_exist, err := cfg.DB.Is_email(context.Background(), params.Email)
+
+	if email_if_exist {
+		respondWithError(w, http.StatusConflict, "Email already exists")
 		return
 	}
-
-	is_valid_name, err := validate.ValidateUsername(params.Username)
-
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if !is_valid_name {
-		respondWithError(w, http.StatusBadRequest, "Enter a valid username")
-		return
-	}
-
-	is_valid_passwd, err := validate.ValidatePassword(params.Passwd)
-
+	err = validate.ValidateUsername(params.Username)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if !is_valid_passwd {
-		respondWithError(w, http.StatusBadRequest, "Enter a valid password")
+	username_if_exists, err := cfg.DB.Is_username(r.Context(), params.Username)
+	if username_if_exists {
+		respondWithError(w, http.StatusConflict, "Email already exists")
 		return
 	}
-
-	if_email, err := cfg.DB.If_email(r.Context(), params.Email)
-
-	if if_email {
+	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	err = validate.ValidatePassword(params.Password)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-	}
-
-	if_username, err := cfg.DB.If_username(r.Context(), params.Username)
-
-	if if_username {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	encrypted, _ := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
+
+	uuids := uuid.New().String()
+	var pgUUID pgtype.UUID
+
+	err = pgUUID.Scan(uuids)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		fmt.Println("Error setting UUID:", err)
 		return
 	}
 
-	encrypted, err := auth.Hashpassword(params.Passwd)
+	var pgtime pgtype.Timestamp
+	err = pgtime.Scan(time.Now().UTC())
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		fmt.Println("Error setting timestamp:", err)
 		return
 	}
-
-	id := uuid.New()
 
 	user, err := cfg.DB.Createuser(r.Context(), database.CreateuserParams{
-		ID:        id,
-		Username:  params.Username,
 		Email:     params.Email,
+		Username:  params.Username,
 		Passwd:    encrypted,
-		CreatedAt: time.Now().UTC(),
+		ID:        pgUUID,
+		CreatedAt: pgtime,
 	})
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondWithJson(w, http.StatusCreated, Res{
+	respondWithJson(w, http.StatusCreated, UserRes{
+		Created_at: user.CreatedAt.Time,
 		Username:   user.Username,
-		Created_at: user.CreatedAt,
+		Email:      user.Email,
 	})
-
 }
 
-func (cfg *apiconfig) login(w http.ResponseWriter, r *http.Request) {
-
+func (cfg *apiconfig) Login(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	params := login_input{}
+	params := UserInput{}
 	err := decoder.Decode(&params)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error decoding parameters")
+		respondWithError(w, http.StatusInternalServerError, "couldn't decode parameters")
 		return
 	}
 
-	var user database.User
-
-	is_email, _ := validate.ValidateEmail(params.Login_id)
-
-	if is_email {
-		user, err = cfg.DB.Find_user_email(r.Context(), params.Login_id)
-
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+	var identifier string
+	if err := validate.ValidateEmail(params.Email); err != nil {
+		if err := validate.ValidateUsername(params.Username); err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid email or username")
 			return
 		}
-
-	} else {
-		is_valid_name, _ := validate.ValidateUsername(params.Login_id)
-		if is_valid_name {
-			user, err = cfg.DB.Find_user_name(r.Context(), params.Login_id)
-		}
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
+		identifier = params.Username
 	}
-	err = bcrypt.CompareHashAndPassword(user.Passwd, []byte(params.Passwd))
+	identifier = params.Email
+
+	if identifier == params.Email {
+
+	} else if identifier == params.Username {
+	}
+
+	user, err := cfg.DB.Find_user_email(r.Context(), params.Email)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	err = bcrypt.CompareHashAndPassword(user.Passwd, []byte(params.Password))
 
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Password doesn't match")
 		return
 	}
 
-	auth_token, err := auth.Tokenize(user.ID, cfg.jwtsecret)
+	Userid, _ := uuid.FromBytes(user.ID.Bytes[:])
+
+	Token, err := auth.Tokenize(Userid, cfg.jwtsecret)
 
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	refresh_token, err := auth.RefreshToken(user.ID, cfg.jwtsecret)
+	Refresh_token, err := auth.RefreshToken(Userid, cfg.jwtsecret)
+
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	respondWithJson(w, http.StatusAccepted, Res{
-		Username:      user.Username,
-		Refresh_Token: refresh_token,
-		Auth_Token:    auth_token,
+	respondWithJson(w, http.StatusOK, res_login{
+		Email:         params.Email,
+		Token:         Token,
+		Refresh_token: Refresh_token,
 	})
 
-}
-
-func respondWithError(w http.ResponseWriter, code int, res string) {
-	if code > 499 {
-		log.Printf("Responding with 5XX error: %s", res)
-	}
-	type errresponse struct {
-		Error string `json:"error"`
-	}
-	respondWithJson(w, code, errresponse{
-		Error: res,
-	})
-}
-
-func respondWithJson(w http.ResponseWriter, code int, res interface{}) {
-	w.Header().Set("content-type", "application/json")
-	data, err := json.Marshal(res)
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-
-	w.WriteHeader(code)
-	w.Write(data)
 }

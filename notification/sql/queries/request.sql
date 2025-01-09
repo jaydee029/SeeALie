@@ -1,5 +1,5 @@
 -- name: DequeRequests :many
-SELECT request_by, request_to, connection_id FROM connections WHERE status_sent=PENDING AND request_status<3 ORDER BY created_at DESC;
+SELECT request_by, request_to, connection_id FROM connections WHERE status_sent=PENDING AND sent_attempts<3 ORDER BY created_at DESC;
 
 -- name: MailSent :exec
 UPDATE connections 

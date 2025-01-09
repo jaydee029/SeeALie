@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  user:
+    build: ./user
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - my_network
+  chat:
+    build: ./chat
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+    networks:
+      - my_network
+  notification:
+    build: ./notification
+    ports:
+      - "8003:8003"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - my_network
+  db:
+    image: postgres:12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - my_network
+  redis:
+    image: redis:6.0.9
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - my_network
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - my_network
+
+
+volumes:
+  postgres_data: 
+  redis_data: 
+  rabbitmq_data:
+
+networks:
+  my_network:
+    driver: seealie
+
+

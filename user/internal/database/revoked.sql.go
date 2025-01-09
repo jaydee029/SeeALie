@@ -7,7 +7,8 @@ package database
 
 import (
 	"context"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const revokeToken = `-- name: RevokeToken :one
@@ -17,11 +18,11 @@ RETURNING token, revoked_at
 
 type RevokeTokenParams struct {
 	Token     string
-	RevokedAt time.Time
+	RevokedAt pgtype.Timestamp
 }
 
 func (q *Queries) RevokeToken(ctx context.Context, arg RevokeTokenParams) (Revoked, error) {
-	row := q.db.QueryRowContext(ctx, revokeToken, arg.Token, arg.RevokedAt)
+	row := q.db.QueryRow(ctx, revokeToken, arg.Token, arg.RevokedAt)
 	var i Revoked
 	err := row.Scan(&i.Token, &i.RevokedAt)
 	return i, err
@@ -32,7 +33,7 @@ SELECT EXISTS (SELECT 1 FROM revoked WHERE token=$1) AS value_exists
 `
 
 func (q *Queries) VerifyRevoke(ctx context.Context, token string) (bool, error) {
-	row := q.db.QueryRowContext(ctx, verifyRevoke, token)
+	row := q.db.QueryRow(ctx, verifyRevoke, token)
 	var value_exists bool
 	err := row.Scan(&value_exists)
 	return value_exists, err

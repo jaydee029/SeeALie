@@ -5,37 +5,25 @@
 package database
 
 import (
-	"time"
-
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
-
-type Connection struct {
-	RequestBy      string
-	RequestTo      string
-	ConnectionID   uuid.UUID
-	CreatedAt      time.Time
-	SentAttempts   int32
-	StatusSent     string
-	StatusAccepted bool
-}
-
-type Friend struct {
-	FollowedBy  string
-	Followed    string
-	RoomID      uuid.UUID
-	ConnectedAt time.Time
-}
 
 type Revoked struct {
 	Token     string
-	RevokedAt time.Time
+	RevokedAt pgtype.Timestamp
+}
+
+type Session struct {
+	SessionID pgtype.UUID
+	UserID    pgtype.UUID
+	Jwt       string
+	ExpiresAt pgtype.Timestamp
 }
 
 type User struct {
-	ID        uuid.UUID
+	ID        pgtype.UUID
 	Email     string
 	Passwd    []byte
 	Username  string
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamp
 }
