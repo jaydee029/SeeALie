@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ type info struct {
 	Connectionid string
 }
 
-func (s *server) ProcessRequest(ctx context.Context) {
+func (s *Service) ProcessRequestNotification(ctx context.Context) {
 	Requests, err := s.DB.DequeRequests(ctx)
 	if err != nil {
 		log.Println(err)
@@ -52,7 +52,7 @@ func (s *server) ProcessRequest(ctx context.Context) {
 	}
 }
 
-func (s *server) SendRequest(ctx context.Context, req *database.DequeRequestsRow) error {
+func (s *Service) SendRequest(ctx context.Context, req *database.DequeRequestsRow) error {
 
 	i := &info{
 		UserName:     req.RequestBy,
@@ -89,19 +89,4 @@ func (s *server) SendRequest(ctx context.Context, req *database.DequeRequestsRow
 	}
 
 	return nil
-}
-
-func (s *server) UpdateSentStatus(ctx context.Context, req *database.DequeRequestsRow, recieved_err error) error {
-
-	switch recieved_err {
-	case nil:
-		err := s.DB.MailSent(ctx, req.ConnectionID)
-		return err
-	default:
-		row, err := s.DB.MailnotSent(ctx, req.ConnectionID)
-		if row.SentAttempts == 3 && row.StatusSent == "PENDING" {
-			log.Println("ALL attempts to send email request exhausted")
-		}
-		return err
-	}
 }

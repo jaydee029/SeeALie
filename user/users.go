@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jaydee029/SeeALie/user/internal/auth"
 	"github.com/jaydee029/SeeALie/user/internal/database"
+	"github.com/jaydee029/SeeALie/user/utils"
 	validate "github.com/jaydee029/SeeALie/user/validator"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -20,10 +22,11 @@ type UserRes struct {
 	Created_at time.Time `json:"created_at"`
 	Email      string    `json:"email"`
 }
-type res_login struct {
-	Email         string `json:"email"`
-	Token         string `json:"token"`
-	Refresh_token string `json:"refresh_token"`
+type LoginRes struct {
+	Email         string           `json:"email"`
+	Token         string           `json:"token"`
+	Refresh_token string           `json:"refresh_token"`
+	ExpiresAt     pgtype.Timestamp `json:"expiresat"`
 }
 type UserInput struct {
 	Password string `json:"password"`
@@ -47,7 +50,7 @@ func (cfg *apiconfig) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email_if_exist, err := cfg.DB.Is_email(context.Background(), params.Email)
+	email_if_exist, err := cfg.DB.IfEmail(context.Background(), params.Email)
 
 	if email_if_exist {
 		respondWithError(w, http.StatusConflict, "Email already exists")
@@ -64,7 +67,7 @@ func (cfg *apiconfig) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username_if_exists, err := cfg.DB.Is_username(r.Context(), params.Username)
+	username_if_exists, err := cfg.DB.IfUsername(r.Context(), params.Username)
 	if username_if_exists {
 		respondWithError(w, http.StatusConflict, "Email already exists")
 		return
@@ -82,17 +85,13 @@ func (cfg *apiconfig) Signup(w http.ResponseWriter, r *http.Request) {
 
 	encrypted, _ := bcrypt.GenerateFromPassword([]byte(params.Password), bcrypt.DefaultCost)
 
-	uuids := uuid.New().String()
-	var pgUUID pgtype.UUID
-
-	err = pgUUID.Scan(uuids)
+	userid, err := utils.GenpgtypeUUID(uuid.New().String())
 	if err != nil {
-		fmt.Println("Error setting UUID:", err)
+		log.Println("Error setting UUID:", err)
 		return
 	}
 
-	var pgtime pgtype.Timestamp
-	err = pgtime.Scan(time.Now().UTC())
+	createdat, err := utils.GenpgtypeTimestamp(time.Now().UTC())
 	if err != nil {
 		fmt.Println("Error setting timestamp:", err)
 		return
@@ -102,8 +101,8 @@ func (cfg *apiconfig) Signup(w http.ResponseWriter, r *http.Request) {
 		Email:     params.Email,
 		Username:  params.Username,
 		Passwd:    encrypted,
-		ID:        pgUUID,
-		CreatedAt: pgtime,
+		ID:        userid,
+		CreatedAt: createdat,
 	})
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -137,16 +136,28 @@ func (cfg *apiconfig) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	identifier = params.Email
 
+	var user database.User
 	if identifier == params.Email {
+		user, err = cfg.DB.FindUserByEmail(r.Context(), params.Email)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 
 	} else if identifier == params.Username {
+		user, err = cfg.DB.FindUserByUsername(r.Context(), params.Username)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
-
-	user, err := cfg.DB.Find_user_email(r.Context(), params.Email)
-
+	ifsession, err := cfg.DB.FindSessionByid(r.Context(), user.ID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if ifsession {
+		respondWithError(w, http.StatusUnauthorized, "User already logged in")
 	}
 	err = bcrypt.CompareHashAndPassword(user.Passwd, []byte(params.Password))
 
@@ -155,25 +166,36 @@ func (cfg *apiconfig) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	Userid, _ := uuid.FromBytes(user.ID.Bytes[:])
+	Token, expiresat, err := auth.Tokenize(user.ID, cfg.jwtsecret)
 
-	Token, err := auth.Tokenize(Userid, cfg.jwtsecret)
+	expiresatpgtype, err := utils.GenpgtypeTimestamp(expiresat)
+	if err != nil {
+		log.Println("Error setting timestamp:", err)
+	}
 
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	Refresh_token, err := auth.RefreshToken(Userid, cfg.jwtsecret)
+	Refresh_token, err := auth.RefreshToken(user.ID, cfg.jwtsecret)
 
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	respondWithJson(w, http.StatusOK, res_login{
+	session, err := cfg.DB.InsertSession(r.Context(), database.InsertSessionParams{
+		SessionID: user.ID,
+		UserID:    user.ID,
+		ExpiresAt: expiresatpgtype,
+		Jwt:       Token,
+	})
+
+	respondWithJson(w, http.StatusOK, LoginRes{
 		Email:         params.Email,
 		Token:         Token,
+		ExpiresAt:     session.ExpiresAt,
 		Refresh_token: Refresh_token,
 	})
 

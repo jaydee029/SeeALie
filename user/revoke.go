@@ -1,18 +1,21 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jaydee029/SeeALie/user/internal/auth"
 	"github.com/jaydee029/SeeALie/user/internal/database"
+	"github.com/jaydee029/SeeALie/user/utils"
 )
 
 type refreshRes struct {
-	Refresh_token string    `json:"refresh_token,omitempty"`
-	Auth_token    string    `json:"auth_token,omitempty"`
-	Revoked_at    time.Time `json:"revoked_at,omitempty"`
+	Refresh_token string           `json:"refresh_token,omitempty"`
+	Auth_token    string           `json:"auth_token,omitempty"`
+	Auth_Expiry   pgtype.Timestamp `json:"auth_expiry,omitempty"`
+	Revoked_at    pgtype.Timestamp `json:"revoked_at,omitempty"`
 }
 
 func (cfg *apiconfig) Refresh(w http.ResponseWriter, r *http.Request) {
@@ -30,29 +33,35 @@ func (cfg *apiconfig) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user_id, err := auth.ValidateToken(Token, cfg.jwtsecret)
+	useridstr, err := auth.ValidateToken(Token, cfg.jwtsecret)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	id, err := uuid.Parse(user_id)
+	userid, err := utils.GenpgtypeUUID(useridstr)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	auth_token, err := auth.Tokenize(id, cfg.jwtsecret)
+	auth_token, expiresat, err := auth.Tokenize(userid, cfg.jwtsecret)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	expiresatpgtype, err := utils.GenpgtypeTimestamp(expiresat)
+	if err != nil {
+		log.Println("Error setting timestamp:", err)
 	}
 
 	respondWithJson(w, http.StatusAccepted, refreshRes{
-		Auth_token: auth_token,
+		Auth_token:  auth_token,
+		Auth_Expiry: expiresatpgtype,
 	})
 
 }
@@ -72,9 +81,14 @@ func (cfg *apiconfig) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	revokedatpgtype, err := utils.GenpgtypeTimestamp(time.Now().UTC())
+	if err != nil {
+		log.Println("Error setting timestamp:", err)
+	}
+
 	revoked, err := cfg.DB.RevokeToken(r.Context(), database.RevokeTokenParams{
 		Token:     Token,
-		RevokedAt: time.Now().UTC(),
+		RevokedAt: revokedatpgtype,
 	})
 
 	if err != nil {

@@ -4,7 +4,7 @@ CREATE TABLE sessions(
     user_id uuid NOT NULL,
     jwt VARCHAR(100) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) on DELETE CASCADE
 );
 
 -- +goose Down

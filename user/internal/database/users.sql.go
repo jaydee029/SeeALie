@@ -13,7 +13,7 @@ import (
 
 const createuser = `-- name: Createuser :one
 INSERT INTO users(id,email,passwd,username,created_at) VALUES($1,$2,$3,$4,$5)
-RETURNING username, created_at
+RETURNING email,username, created_at
 `
 
 type CreateuserParams struct {
@@ -25,6 +25,7 @@ type CreateuserParams struct {
 }
 
 type CreateuserRow struct {
+	Email     string
 	Username  string
 	CreatedAt pgtype.Timestamp
 }
@@ -38,16 +39,30 @@ func (q *Queries) Createuser(ctx context.Context, arg CreateuserParams) (Createu
 		arg.CreatedAt,
 	)
 	var i CreateuserRow
-	err := row.Scan(&i.Username, &i.CreatedAt)
+	err := row.Scan(&i.Email, &i.Username, &i.CreatedAt)
 	return i, err
 }
 
-const find_user_email = `-- name: Find_user_email :one
+const findSessionByid = `-- name: FindSessionByid :one
+
+SELECT EXISTS (
+    SELECT 1 FROM sessions WHERE user_id=$1 AND expires_at > NOW()
+) AS value_exists
+`
+
+func (q *Queries) FindSessionByid(ctx context.Context, userID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, findSessionByid, userID)
+	var value_exists bool
+	err := row.Scan(&value_exists)
+	return value_exists, err
+}
+
+const findUserByEmail = `-- name: FindUserByEmail :one
 SELECT id, email, passwd, username, created_at FROM users WHERE email=$1
 `
 
-func (q *Queries) Find_user_email(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, find_user_email, email)
+func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, findUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -59,12 +74,12 @@ func (q *Queries) Find_user_email(ctx context.Context, email string) (User, erro
 	return i, err
 }
 
-const find_user_name = `-- name: Find_user_name :one
+const findUserByUsername = `-- name: FindUserByUsername :one
 SELECT id, email, passwd, username, created_at FROM users WHERE username=$1
 `
 
-func (q *Queries) Find_user_name(ctx context.Context, username string) (User, error) {
-	row := q.db.QueryRow(ctx, find_user_name, username)
+func (q *Queries) FindUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, findUserByUsername, username)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -76,28 +91,57 @@ func (q *Queries) Find_user_name(ctx context.Context, username string) (User, er
 	return i, err
 }
 
-const is_email = `-- name: Is_email :one
+const ifEmail = `-- name: IfEmail :one
 SELECT EXISTS (
     SELECT 1 FROM users WHERE email=$1
 ) AS value_exists
 `
 
-func (q *Queries) Is_email(ctx context.Context, email string) (bool, error) {
-	row := q.db.QueryRow(ctx, is_email, email)
+func (q *Queries) IfEmail(ctx context.Context, email string) (bool, error) {
+	row := q.db.QueryRow(ctx, ifEmail, email)
 	var value_exists bool
 	err := row.Scan(&value_exists)
 	return value_exists, err
 }
 
-const is_username = `-- name: Is_username :one
+const ifUsername = `-- name: IfUsername :one
 SELECT EXISTS (
     SELECT 1 FROM users WHERE username=$1
 ) AS value_exists
 `
 
-func (q *Queries) Is_username(ctx context.Context, username string) (bool, error) {
-	row := q.db.QueryRow(ctx, is_username, username)
+func (q *Queries) IfUsername(ctx context.Context, username string) (bool, error) {
+	row := q.db.QueryRow(ctx, ifUsername, username)
 	var value_exists bool
 	err := row.Scan(&value_exists)
 	return value_exists, err
+}
+
+const insertSession = `-- name: InsertSession :one
+INSERT INTO sessions(session_id, user_id, jwt, expires_at) VALUES($1, $2, $3, $4)
+RETURNING session_id, expires_at
+`
+
+type InsertSessionParams struct {
+	SessionID pgtype.UUID
+	UserID    pgtype.UUID
+	Jwt       string
+	ExpiresAt pgtype.Timestamp
+}
+
+type InsertSessionRow struct {
+	SessionID pgtype.UUID
+	ExpiresAt pgtype.Timestamp
+}
+
+func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (InsertSessionRow, error) {
+	row := q.db.QueryRow(ctx, insertSession,
+		arg.SessionID,
+		arg.UserID,
+		arg.Jwt,
+		arg.ExpiresAt,
+	)
+	var i InsertSessionRow
+	err := row.Scan(&i.SessionID, &i.ExpiresAt)
+	return i, err
 }

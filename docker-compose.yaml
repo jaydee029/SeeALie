@@ -24,7 +24,7 @@ services:
       - rabbitmq
     networks:
       - my_network
-  notification:
+  notifications:
     build: ./notification
     ports:
       - "8003:8003"
@@ -33,6 +33,8 @@ services:
     depends_on:
       - db
       - rabbitmq
+      - user
+      - redis
     networks:
       - my_network
   db:
@@ -44,13 +46,13 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5432:5432" # just for development, can be removed in production if docker compose is used
     networks:
       - my_network
   redis:
     image: redis:6.0.9
     ports:
-      - "6379:6379"
+      - "6379:6379"   #just for development, can be removed in production if docker compose is used
     volumes:
       - redis_data:/data
     networks:
@@ -58,8 +60,8 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672" # just for development, can be removed in production if docker compose is used
+      - "15672:15672" # just for development, can be removed in production if docker compose is used
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     environment:
