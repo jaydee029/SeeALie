@@ -48,7 +48,7 @@ func (ws *Wserver) Addfriend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, err := ws.DB.Get_username(r.Context(), Id)
+	_, err = ws.DB.Get_username(r.Context(), Id)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "error finding the username:"+err.Error())
 		return
@@ -58,8 +58,6 @@ func (ws *Wserver) Addfriend(w http.ResponseWriter, r *http.Request) {
 	if targetClient == "" {
 		respondWithError(w, http.StatusBadRequest, "no name entered")
 	}
-
-	
 
 }
 

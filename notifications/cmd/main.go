@@ -11,6 +11,7 @@ import (
 	"github.com/jaydee029/SeeALie/request/handler"
 	"github.com/jaydee029/SeeALie/request/internal/database"
 	"github.com/joho/godotenv"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Print("Port not provided")
-		port = "8080"
+		port = "8003"
 	}
 
 	domain := os.Getenv("DOMAIN")
@@ -39,19 +40,27 @@ func main() {
 
 	queries := database.New(dbcon)
 
+	const rabbitConnString = "amqp://guest:guest@localhost:5672/"
+
+	conn, err := amqp.Dial(rabbitConnString)
+	if err != nil {
+		log.Fatalf("could not connect to RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+
 	services := &service.Service{
 		Domain:      domain,
 		AdminEmail:  adminEmail,
 		AdminPasswd: adminPasswd,
 		DB:          queries,
+		Pubsub:      conn,
 	}
 
-	h := &handler.Handler{
-		DB:  queries,
+	h := &handler.PubSubhandler{
 		Svc: services,
 	}
 
-	go h.Run(context.Background())
+	go h.Svc.Run(context.Background())
 
 	//http.HandleFunc("/healthz", srv.healthz)
 
