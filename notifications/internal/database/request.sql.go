@@ -13,7 +13,7 @@ import (
 )
 
 const dequeRequests = `-- name: DequeRequests :many
-SELECT request_by, request_to, connection_id FROM connections WHERE status_sent=PENDING AND sent_attempts<3 ORDER BY created_at DESC
+SELECT request_by, request_to, connection_id FROM connections WHERE status_sent=FALSE AND sent_attempts<3 ORDER BY created_at DESC
 `
 
 type DequeRequestsRow struct {
@@ -47,7 +47,7 @@ func (q *Queries) DequeRequests(ctx context.Context) ([]DequeRequestsRow, error)
 
 const mailSent = `-- name: MailSent :exec
 UPDATE connections 
-SET sent_attempts = sent_attempts +1 , status_sent="SENT"
+SET sent_attempts = sent_attempts +1 , status_sent=TRUE
 WHERE connection_id=$1
 `
 
@@ -64,7 +64,7 @@ WHERE connection_id=$1 RETURNING sent_attempts,status_sent
 
 type MailnotSentRow struct {
 	SentAttempts sql.NullInt32
-	StatusSent   string
+	StatusSent   bool
 }
 
 func (q *Queries) MailnotSent(ctx context.Context, connectionID uuid.UUID) (MailnotSentRow, error) {

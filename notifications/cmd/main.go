@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"os"
 
-	service "github.com/jaydee029/SeeALie/request"
-	"github.com/jaydee029/SeeALie/request/handler"
-	"github.com/jaydee029/SeeALie/request/internal/database"
+	"github.com/jaydee029/SeeALie/notifications/internal/database"
+	service "github.com/jaydee029/SeeALie/notifications/internal/services"
+	"github.com/jaydee029/SeeALie/pubsub"
 	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -46,21 +46,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not connect to RabbitMQ: %v", err)
 	}
+	pb := pubsub.New(conn)
 	defer conn.Close()
 
-	services := &service.Service{
-		Domain:      domain,
-		AdminEmail:  adminEmail,
-		AdminPasswd: adminPasswd,
-		DB:          queries,
-		Pubsub:      conn,
-	}
+	services := service.NewService(domain, adminEmail, adminPasswd, queries, pb)
 
-	h := &handler.PubSubhandler{
-		Svc: services,
-	}
-
-	go h.Svc.Run(context.Background())
+	go services.Run(context.Background())
 
 	//http.HandleFunc("/healthz", srv.healthz)
 

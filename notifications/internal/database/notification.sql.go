@@ -8,18 +8,15 @@ package database
 import (
 	"context"
 	"database/sql"
-
-	"github.com/google/uuid"
 )
 
 const dequeNotifications = `-- name: DequeNotifications :many
-SELECT request_by, request_to, request_status FROM notifications WHERE status_sent=PENDING AND sent_attempts<3 ORDER BY created_at DESC
+SELECT request_init_by, request_to FROM notifications WHERE status_sent=FALSE AND sent_attempts<3 ORDER BY created_at DESC
 `
 
 type DequeNotificationsRow struct {
-	RequestBy     string
+	RequestInitBy string
 	RequestTo     string
-	RequestStatus string
 }
 
 func (q *Queries) DequeNotifications(ctx context.Context) ([]DequeNotificationsRow, error) {
@@ -31,7 +28,7 @@ func (q *Queries) DequeNotifications(ctx context.Context) ([]DequeNotificationsR
 	var items []DequeNotificationsRow
 	for rows.Next() {
 		var i DequeNotificationsRow
-		if err := rows.Scan(&i.RequestBy, &i.RequestTo, &i.RequestStatus); err != nil {
+		if err := rows.Scan(&i.RequestInitBy, &i.RequestTo); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -46,29 +43,40 @@ func (q *Queries) DequeNotifications(ctx context.Context) ([]DequeNotificationsR
 }
 
 const notificationSent = `-- name: NotificationSent :exec
-UPDATE connections 
-SET sent_attempts = sent_attempts +1 , status_sent="SENT"
-WHERE connection_id=$1
+UPDATE notifications
+SET sent_attempts = sent_attempts +1 , status_sent=TRUE
+WHERE request_init_by=$1 AND request_to=$2
 `
 
-func (q *Queries) NotificationSent(ctx context.Context, connectionID uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, notificationSent, connectionID)
+type NotificationSentParams struct {
+	RequestInitBy string
+	RequestTo     string
+}
+
+func (q *Queries) NotificationSent(ctx context.Context, arg NotificationSentParams) error {
+	_, err := q.db.ExecContext(ctx, notificationSent, arg.RequestInitBy, arg.RequestTo)
 	return err
 }
 
 const notificationnotSent = `-- name: NotificationnotSent :one
-UPDATE connections 
+UPDATE notifications
 SET sent_attempts = sent_attempts +1 
-WHERE connection_id=$1 RETURNING sent_attempts,status_sent
+WHERE request_init_by=$1 AND request_to=$2
+RETURNING sent_attempts,status_sent
 `
+
+type NotificationnotSentParams struct {
+	RequestInitBy string
+	RequestTo     string
+}
 
 type NotificationnotSentRow struct {
 	SentAttempts sql.NullInt32
-	StatusSent   string
+	StatusSent   bool
 }
 
-func (q *Queries) NotificationnotSent(ctx context.Context, connectionID uuid.UUID) (NotificationnotSentRow, error) {
-	row := q.db.QueryRowContext(ctx, notificationnotSent, connectionID)
+func (q *Queries) NotificationnotSent(ctx context.Context, arg NotificationnotSentParams) (NotificationnotSentRow, error) {
+	row := q.db.QueryRowContext(ctx, notificationnotSent, arg.RequestInitBy, arg.RequestTo)
 	var i NotificationnotSentRow
 	err := row.Scan(&i.SentAttempts, &i.StatusSent)
 	return i, err

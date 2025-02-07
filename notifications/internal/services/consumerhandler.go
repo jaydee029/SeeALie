@@ -1,4 +1,43 @@
-package handler
+package internal
+
+import (
+	"context"
+	"log"
+
+	"github.com/jaydee029/SeeALie/pubsub"
+)
+
+func eventhandler(val any) pubsub.Acktype {
+
+	
+}
+
+func (s *Service) Eventlistener(ctx context.Context) {
+
+	errch := make(chan error)
+	go func() {
+		err := s.Pubsub.SubscribeGob("SeeALie_User_direct", "user_email_queue", "user.email", pubsub.DurableQueue, eventhandler)
+		if err != nil {
+			errch <- err
+		}
+	}()
+
+	go func() {
+		err := s.Pubsub.SubscribeGob("SeeALie_User_direct", "user_mapping_queue", "user.mapping", pubsub.DurableQueue, eventhandler)
+		if err != nil {
+			errch <- err
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		close(errch)
+		log.Println("closing event listener ...")
+		return
+	case err := <-errch:
+		log.Panicln(err)
+	}
+}
 
 /*
 	func (s *server) EnqueRequest(ctx context.Context, r *protos.EmailRequest) (*protos.EmailResponse, error) {

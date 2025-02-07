@@ -12,20 +12,25 @@ import (
 )
 
 type Connection struct {
-	RequestBy      string
-	RequestTo      string
-	ConnectionID   uuid.UUID
-	CreatedAt      time.Time
-	SentAttempts   sql.NullInt32
-	StatusSent     string
-	StatusAccepted bool
+	RequestBy    string
+	RequestTo    string
+	ConnectionID uuid.UUID
+	CreatedAt    time.Time
+	SentAttempts sql.NullInt32
+	StatusSent   bool
 }
 
 type Notification struct {
-	RequestBy     string
+	RequestInitBy string
 	RequestTo     string
 	RequestStatus string
 	CreatedAt     time.Time
 	SentAttempts  sql.NullInt32
-	StatusSent    string
+	StatusSent    bool
+}
+
+type User struct {
+	Username      string
+	Email         string
+	LastUpdatedAt time.Time
 }

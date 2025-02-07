@@ -5,7 +5,7 @@ CREATE TABLE notifications(
     request_status VARCHAR(8) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     sent_attempts INT DEFAULT 0 CHECK (sent_attempts <=3),
-    status_sent BOOLEAN DEFAULT FALSE CHECK (status_sent IN (FALSE, TRUE)),
+    status_sent BOOLEAN NOT NULL DEFAULT FALSE CHECK (status_sent IN (FALSE, TRUE)),
     FOREIGN KEY (request_init_by) REFERENCES users (user_id),
     FOREIGN KEY (request_to) REFERENCES users (user_id),
     CHECK (request_init_by != request_to),

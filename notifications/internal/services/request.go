@@ -1,4 +1,4 @@
-package service
+package internal
 
 import (
 	"bytes"
@@ -9,17 +9,17 @@ import (
 
 	"gopkg.in/gomail.v2"
 
-	"github.com/jaydee029/SeeALie/request/internal/database"
+	"github.com/jaydee029/SeeALie/notifications/internal/database"
 	"golang.org/x/sync/semaphore"
 )
 
-type info struct {
+type RequestInfo struct {
 	UserName     string
 	Domain       string
 	Connectionid string
 }
 
-func (s *Service) ProcessRequestNotification(ctx context.Context) {
+func (s *Service) ProcessRequest(ctx context.Context) {
 	Requests, err := s.DB.DequeRequests(ctx)
 	if err != nil {
 		log.Println(err)
@@ -39,7 +39,7 @@ func (s *Service) ProcessRequestNotification(ctx context.Context) {
 			defer sem.Release(1)
 
 			err := s.SendRequest(ctx, req)
-			err = s.UpdateSentStatus(ctx, req, err)
+			err = s.UpdateRequestSentStatus(ctx, req, err)
 			if err != nil {
 				log.Println(err)
 			}
@@ -54,7 +54,7 @@ func (s *Service) ProcessRequestNotification(ctx context.Context) {
 
 func (s *Service) SendRequest(ctx context.Context, req *database.DequeRequestsRow) error {
 
-	i := &info{
+	i := &RequestInfo{
 		UserName:     req.RequestBy,
 		Domain:       s.Domain,
 		Connectionid: req.ConnectionID.String(),
@@ -63,9 +63,9 @@ func (s *Service) SendRequest(ctx context.Context, req *database.DequeRequestsRo
 	if err != nil {
 		log.Println(err)
 	}
-	t := template.New("template/request.html")
+	t := template.New("../../template/request.html")
 
-	t, err = t.ParseFiles("template/request.html")
+	t, err = t.ParseFiles("../../template/request.html")
 
 	if err != nil {
 		log.Println("error parsing mail template", err)
@@ -89,4 +89,19 @@ func (s *Service) SendRequest(ctx context.Context, req *database.DequeRequestsRo
 	}
 
 	return nil
+}
+
+func (s *Service) UpdateRequestSentStatus(ctx context.Context, req *database.DequeRequestsRow, recieved_err error) error {
+
+	switch recieved_err {
+	case nil:
+		err := s.DB.MailSent(ctx, req.ConnectionID)
+		return err
+	default:
+		row, err := s.DB.MailnotSent(ctx, req.ConnectionID)
+		if row.SentAttempts.Valid && row.SentAttempts.Int32 == 3 && !row.StatusSent {
+			log.Println("ALL attempts to send email request exhausted")
+		}
+		return err
+	}
 }

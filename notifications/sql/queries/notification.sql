@@ -1,12 +1,13 @@
 -- name: DequeNotifications :many
-SELECT request_by, request_to, request_status FROM notifications WHERE status_sent=PENDING AND sent_attempts<3 ORDER BY created_at DESC;
+SELECT request_init_by, request_to FROM notifications WHERE status_sent=FALSE AND sent_attempts<3 ORDER BY created_at DESC;
 
 -- name: NotificationSent :exec
-UPDATE connections 
-SET sent_attempts = sent_attempts +1 , status_sent="SENT"
-WHERE connection_id=$1;
+UPDATE notifications
+SET sent_attempts = sent_attempts +1 , status_sent=TRUE
+WHERE request_init_by=$1 AND request_to=$2;
 
 -- name: NotificationnotSent :one
-UPDATE connections 
+UPDATE notifications
 SET sent_attempts = sent_attempts +1 
-WHERE connection_id=$1 RETURNING sent_attempts,status_sent;
+WHERE request_init_by=$1 AND request_to=$2
+RETURNING sent_attempts,status_sent;
